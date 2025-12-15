@@ -121,6 +121,12 @@
       <button class="d-btn" id="right">➡️</button>
     </div>
   </div>
+  <!-- این دکمه را زیر دکمه‌های جهت دار قرار دهید -->
+<div style="margin-top: 20px;">
+  <button class="btn-opt" id="submitScore" style="background: #22c55e; border: none; padding: 10px 20px; font-weight: bold;">
+    🏆 ثبت رکورد و خروج
+  </button>
+</div>
 
 <script>
 // --- تنظیمات تلگرام ---
@@ -244,6 +250,16 @@ soundBtn.onclick=()=>{
 };
 
 requestAnimationFrame(loop);
+  document.getElementById('submitScore').onclick = function() {
+    // اطلاعاتی که میخواهید به ربات فرستاده شود
+    const data = JSON.stringify({
+        score: score,
+        highScore: highScore
+    });
+    
+    // ارسال داده به ربات و بستن پنجره بازی
+    tg.sendData(data); 
+};
 </script>
 </body>
 </html>
