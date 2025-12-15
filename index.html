@@ -1,8 +1,11 @@
-<!DOCTYPE html><html lang="fa">
+<!DOCTYPE html>
+<html lang="fa">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Snake Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Snake Game Kids</title>
+  <!-- اضافه کردن اسکریپت تلگرام برای ذخیره‌سازی -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
       --bg: #0f172a;
@@ -10,56 +13,121 @@
       --snake: #22c55e;
       --apple: #ef4444;
       --text: #e5e7eb;
+      --btn-bg: #1e293b;
     }
     body.light {
       --bg: #f8fafc;
-      --canvas: #e5e7eb;
+      --canvas: #cbd5e1;
       --snake: #16a34a;
       --apple: #dc2626;
       --text: #020617;
+      --btn-bg: #e2e8f0;
     }
     body {
       margin: 0;
       background: var(--bg);
       color: var(--text);
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
       font-family: system-ui, sans-serif;
+      touch-action: manipulation;
     }
     .game { text-align: center; }
     canvas {
       background: var(--canvas);
       border-radius: 16px;
       box-shadow: 0 10px 40px rgba(0,0,0,.4);
-      touch-action: none;
+      display: block;
+      margin: 0 auto;
     }
     .top {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
+      width: 320px;
+      margin: 0 auto 10px auto;
     }
-    button {
+    .btn-opt {
       background: none;
       border: 1px solid var(--text);
       color: var(--text);
       padding: 4px 10px;
       border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
     }
-    .score { margin-top: 8px; font-size: 18px; }
+    .score-board {
+      margin-top: 10px;
+      font-size: 18px;
+      display: flex;
+      justify-content: space-between;
+      width: 320px;
+      margin: 10px auto;
+    }
+    
+    /* استایل دکمه‌های جهت‌دار */
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      width: 200px;
+      margin: 20px auto 0 auto;
+    }
+    .d-btn {
+      background: var(--btn-bg);
+      border: none;
+      color: var(--text);
+      font-size: 24px;
+      height: 60px;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+    .d-btn:active {
+      transform: translateY(4px);
+      box-shadow: none;
+    }
   </style>
 </head>
 <body>
   <div class="game">
     <div class="top">
-      <button id="theme">🌗 Theme</button>
-      <button id="sound">🔊 Sound</button>
+      <button class="btn-opt" id="theme">🌗 تم</button>
+      <button class="btn-opt" id="sound">🔊 صدا</button>
     </div>
+    
     <canvas id="game" width="320" height="320"></canvas>
-    <div class="score">Score: <span id="score">0</span></div>
-  </div><script>
+    
+    <div class="score-board">
+      <div>امتیاز: <span id="score">0</span></div>
+      <div>رکورد: <span id="highScore">0</span></div>
+    </div>
+
+    <!-- دکمه‌های کنترلی برای کودک -->
+    <div class="controls">
+      <div></div>
+      <button class="d-btn" id="up">⬆️</button>
+      <div></div>
+      <button class="d-btn" id="left">⬅️</button>
+      <button class="d-btn" id="down">⬇️</button>
+      <button class="d-btn" id="right">➡️</button>
+    </div>
+  </div>
+
+<script>
+// --- تنظیمات تلگرام ---
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand(); // تمام صفحه کردن در تلگرام
+
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const eatSound = new Audio('https://actions.google.com/sounds/v1/cartoon/pop.ogg');
@@ -67,7 +135,16 @@ const eatSound = new Audio('https://actions.google.com/sounds/v1/cartoon/pop.ogg
 const grid = 16;
 let count = 0;
 let score = 0;
+let highScore = 0;
 let soundOn = true;
+
+// بارگذاری رکورد از فضای ابری تلگرام
+tg.CloudStorage.getItem('snake_highscore', (err, value) => {
+  if (!err && value) {
+    highScore = parseInt(value);
+    document.getElementById('highScore').innerText = highScore;
+  }
+});
 
 let snake = { x:160, y:160, dx:grid, dy:0, cells:[], maxCells:4 };
 let apple = { x:160, y:160 };
@@ -76,10 +153,17 @@ function rand(min,max){return Math.floor(Math.random()*(max-min))+min;}
 
 function loop(){
   requestAnimationFrame(loop);
-  if(++count<4) return; count=0;
+  
+  // --- کاهش سرعت بازی ---
+  // عدد 4 قبلی به 10 تغییر کرد. هرچه عدد بزرگتر، سرعت کمتر.
+  if(++count < 10) return; 
+  count=0;
+
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
   snake.x+=snake.dx; snake.y+=snake.dy;
+  
+  // عبور از دیوارها
   if(snake.x<0) snake.x=canvas.width-grid;
   if(snake.x>=canvas.width) snake.x=0;
   if(snake.y<0) snake.y=canvas.height-grid;
@@ -88,17 +172,25 @@ function loop(){
   snake.cells.unshift({x:snake.x,y:snake.y});
   if(snake.cells.length>snake.maxCells) snake.cells.pop();
 
+  // رسم سیب
   ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--apple');
   ctx.fillRect(apple.x,apple.y,grid-1,grid-1);
 
+  // رسم مار
   ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--snake');
   snake.cells.forEach((c,i)=>{
     ctx.fillRect(c.x,c.y,grid-1,grid-1);
+    
+    // خوردن سیب
     if(c.x===apple.x && c.y===apple.y){
-      snake.maxCells++; score++; scoreEl.innerText=score;
+      snake.maxCells++; 
+      score++; 
+      document.getElementById('score').innerText=score;
       if(soundOn) eatSound.play();
       apple.x=rand(0,20)*grid; apple.y=rand(0,20)*grid;
     }
+    
+    // برخورد با خود (باختن)
     for(let j=i+1;j<snake.cells.length;j++){
       if(c.x===snake.cells[j].x && c.y===snake.cells[j].y){ reset(); }
     }
@@ -106,41 +198,52 @@ function loop(){
 }
 
 function reset(){
+  // بررسی و ذخیره رکورد
+  if (score > highScore) {
+    highScore = score;
+    document.getElementById('highScore').innerText = highScore;
+    // ذخیره در تلگرام
+    tg.CloudStorage.setItem('snake_highscore', highScore.toString(), (err, stored) => {
+        if(err) console.log(err);
+    });
+  }
+
   snake={x:160,y:160,dx:grid,dy:0,cells:[],maxCells:4};
-  score=0; scoreEl.innerText=0;
+  score=0; 
+  document.getElementById('score').innerText=0;
 }
 
-const scoreEl=document.getElementById('score');
+// --- کنترلرها ---
+function changeDir(dir) {
+    if(dir==='left' && snake.dx===0){snake.dx=-grid;snake.dy=0}
+    else if(dir==='up' && snake.dy===0){snake.dy=-grid;snake.dx=0}
+    else if(dir==='right' && snake.dx===0){snake.dx=grid;snake.dy=0}
+    else if(dir==='down' && snake.dy===0){snake.dy=grid;snake.dx=0}
+}
 
-// keyboard
+// دکمه‌های روی صفحه
+document.getElementById('left').onclick = () => changeDir('left');
+document.getElementById('up').onclick = () => changeDir('up');
+document.getElementById('right').onclick = () => changeDir('right');
+document.getElementById('down').onclick = () => changeDir('down');
+
+// کیبورد
 addEventListener('keydown',e=>{
-  if(e.key==='ArrowLeft'&&snake.dx===0){snake.dx=-grid;snake.dy=0}
-  if(e.key==='ArrowUp'&&snake.dy===0){snake.dy=-grid;snake.dx=0}
-  if(e.key==='ArrowRight'&&snake.dx===0){snake.dx=grid;snake.dy=0}
-  if(e.key==='ArrowDown'&&snake.dy===0){snake.dy=grid;snake.dx=0}
+  if(e.key==='ArrowLeft') changeDir('left');
+  if(e.key==='ArrowUp') changeDir('up');
+  if(e.key==='ArrowRight') changeDir('right');
+  if(e.key==='ArrowDown') changeDir('down');
 });
 
-// touch (swipe)
-let sx=0,sy=0;
-canvas.addEventListener('touchstart',e=>{
-  sx=e.touches[0].clientX; sy=e.touches[0].clientY;
-});
-canvas.addEventListener('touchend',e=>{
-  let dx=e.changedTouches[0].clientX-sx;
-  let dy=e.changedTouches[0].clientY-sy;
-  if(Math.abs(dx)>Math.abs(dy)){
-    if(dx>0 && snake.dx===0){snake.dx=grid;snake.dy=0}
-    if(dx<0 && snake.dx===0){snake.dx=-grid;snake.dy=0}
-  } else {
-    if(dy>0 && snake.dy===0){snake.dy=grid;snake.dx=0}
-    if(dy<0 && snake.dy===0){snake.dy=-grid;snake.dx=0}
-  }
-});
-
-// ui
-theme.onclick=()=>document.body.classList.toggle('light');
-sound.onclick=()=>{soundOn=!soundOn; sound.innerText=soundOn?'🔊 Sound':'🔇 Sound'};
+// UI Buttons
+document.getElementById('theme').onclick=()=>document.body.classList.toggle('light');
+const soundBtn = document.getElementById('sound');
+soundBtn.onclick=()=>{
+    soundOn=!soundOn; 
+    soundBtn.innerText=soundOn?'🔊 صدا':'🔇 صدا'
+};
 
 requestAnimationFrame(loop);
-</script></body>
-                                </html>
+</script>
+</body>
+</html>
